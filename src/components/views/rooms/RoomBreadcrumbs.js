@@ -27,6 +27,7 @@ import * as RoomNotifs from '../../../RoomNotifs';
 import * as FormattingUtils from "../../../utils/FormattingUtils";
 import DMRoomMap from "../../../utils/DMRoomMap";
 import {_t} from "../../../languageHandler";
+import {Key} from '../../../Keyboard';
 
 const MAX_ROOMS = 20;
 const MIN_ROOMS_BEFORE_ENABLED = 10;
@@ -37,7 +38,7 @@ const AUTOJOIN_WAIT_THRESHOLD_MS = 90000; // 90 seconds
 export default class RoomBreadcrumbs extends React.Component {
     constructor(props) {
         super(props);
-        this.state = {rooms: [], enabled: false};
+        this.state = {rooms: [], enabled: false, focused: null};
 
         this.onAction = this.onAction.bind(this);
         this._dispatcherRef = null;
@@ -47,6 +48,10 @@ export default class RoomBreadcrumbs extends React.Component {
         this._waitingRoomQueue = [/* { roomId, addedTs } */];
 
         this._scroller = createRef();
+        this._onKeyDown = this._onKeyDown.bind(this);
+        this._elRef = createRef();
+        this._buttonRefs = [];
+		this._buttonKeys = [];
     }
 
     // TODO: [REACT-WARNING] Move this to constructor
@@ -67,10 +72,16 @@ export default class RoomBreadcrumbs extends React.Component {
         MatrixClientPeg.get().on("Room", this.onRoom);
     }
 
+    componentDidMount() {
+        this._elRef.current.addEventListener("keydown", this._onKeyDown, true);
+    }
+
     componentWillUnmount() {
         dis.unregister(this._dispatcherRef);
 
         SettingsStore.unwatchSetting(this._settingWatchRef);
+
+        this._elRef.current.removeEventListener("keydown", this._onKeyDown, true);
 
         const client = MatrixClientPeg.get();
         if (client) {
@@ -321,9 +332,41 @@ export default class RoomBreadcrumbs extends React.Component {
         this.setState({rooms});
     }
 
+    _onKeyDown(event) {
+        const {key} = event;
+        const buttonKeys = this._buttonKeys;
+        const current = buttonKeys.indexOf(this.state.focused);
+        let newIndex = null;
+
+        if (key === Key.ARROW_RIGHT) {
+            newIndex = (current + 1) % buttonKeys.length;
+        } else if (key === Key.ARROW_LEFT) {
+            newIndex = current ? current - 1 : buttonKeys.length - 1;
+        } else if (key === Key.HOME) {
+            newIndex = 0;
+        } else if (key === Key.END) {
+            newIndex = buttonKeys.length - 1;
+        } else {
+            return;
+        }
+
+        if (newIndex !== null) {
+            this.setState({ focused: buttonKeys[newIndex] });
+            this.buttonsRefs[nexIndex].current.focus();
+        }
+
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
     _isDmRoom(room) {
         const dmRooms = DMRoomMap.shared().getUserIdForRoomId(room.roomId);
         return Boolean(dmRooms);
+    }
+
+    tabIndex(key) {
+        const focused = this.state.focused || this.state.rooms[0] && this.state.rooms[0].room.roomId;
+        return key === focused ? 0 : -1;
     }
 
     render() {
@@ -337,6 +380,8 @@ export default class RoomBreadcrumbs extends React.Component {
         }
 
         const rooms = this.state.rooms;
+        this._buttonRefs.length = rooms.length;
+		this._buttonKeys.length = rooms.length;
         const avatars = rooms.map((r, i) => {
             const isFirst = i === 0;
             const classes = classNames({
@@ -363,14 +408,18 @@ export default class RoomBreadcrumbs extends React.Component {
                 badge = <div className={badgeClasses}>{r.formattedCount}</div>;
             }
 
+            this._buttonRefs[i] = createRef();
+			this._buttonKeys[i] = r.room.roomId;
             return (
                 <AccessibleButton
                     className={classes}
-                    key={r.room.roomId}
+                    key={this._buttonsKeys[i]}
                     onClick={() => this._viewRoom(r.room, i)}
                     onMouseEnter={() => this._onMouseEnter(r.room)}
                     onMouseLeave={() => this._onMouseLeave(r.room)}
                     aria-label={_t("Room %(name)s", {name: r.room.name})}
+                    ref={this._buttonRefs[i]}
+                    tabIndex={this.tabIndex(r.room.roomId)}
                 >
                     <RoomAvatar room={r.room} width={32} height={32} />
                     {badge}
@@ -379,7 +428,7 @@ export default class RoomBreadcrumbs extends React.Component {
             );
         });
         return (
-            <div role="toolbar" aria-label={_t("Recent rooms")}>
+            <div role="toolbar" aria-label={_t("Recent rooms")} ref={this._elRef}>
                 <IndicatorScrollbar
                     ref={this._scroller}
                     className="mx_RoomBreadcrumbs"
