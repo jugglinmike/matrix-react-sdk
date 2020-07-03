@@ -16,15 +16,14 @@ limitations under the License.
 
 import { _t } from '../../../languageHandler';
 import AccessibleButton from '../elements/AccessibleButton';
+import classNames from 'classnames';
 
 export default (props) => {
-    let className = 'mx_JumpToBottomButton';
+    const className = classNames({
+        'mx_JumpToBottomButton': true,
+        'mx_JumpToBottomButton_highlight': props.highlight,
+    });
     let badge;
-
-    if (props.highlight) {
-        className += ' mx_JumpToBottomButton_highlight';
-    }
-
     if (props.numUnreadMessages) {
         badge = (<div className="mx_JumpToBottomButton_badge">{props.numUnreadMessages}</div>);
     }
