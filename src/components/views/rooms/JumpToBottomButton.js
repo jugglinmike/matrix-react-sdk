@@ -18,11 +18,17 @@ import { _t } from '../../../languageHandler';
 import AccessibleButton from '../elements/AccessibleButton';
 
 export default (props) => {
+    let className = 'mx_JumpToBottomButton';
     let badge;
+
+    if (props.highlight) {
+        className += ' mx_JumpToBottomButton_highlight';
+    }
+
     if (props.numUnreadMessages) {
         badge = (<div className="mx_JumpToBottomButton_badge">{props.numUnreadMessages}</div>);
     }
-    return (<div className="mx_JumpToBottomButton">
+    return (<div className={className}>
         <AccessibleButton className="mx_JumpToBottomButton_scrollDown"
             title={_t("Scroll to most recent messages")}
             onClick={props.onScrollToBottomClick}>
