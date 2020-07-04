@@ -22,7 +22,7 @@ import {MatrixClientPeg} from '../MatrixClientPeg';
 import { MatrixEvent } from 'matrix-js-sdk';
 
 import Room from "matrix-js-sdk/src/models/room";
-import {TextualCompletion} from './Components';
+import {PillCompletion} from './Components';
 import {ICompletion, ISelectionRange} from "./Autocompleter";
 
 const SED_REGEX = /^s\/([^/]*)(?:\/(.*))?$/g;
@@ -37,11 +37,10 @@ export default class SedReplaceProvider extends AutocompleteProvider {
 
     async getCompletions(query: string, selection: ISelectionRange, force= false): Promise<ICompletion[]> {
         const {command, range} = this.getCurrentCommand(query, selection);
-        console.log(query, command);
         if (!query || !command) {
             return [];
         }
-        const [, needle, haystack] = command;
+        const [, patternStr, replacement] = command;
         const events = this.room.getLiveTimeline().getEvents();
         const currentUserId = MatrixClientPeg.get().credentials.userId;
         let draft;
@@ -49,7 +48,7 @@ export default class SedReplaceProvider extends AutocompleteProvider {
         for (let index = events.length - 1; index > -1; index -= 1) {
             const event = events[index];
             if (event.sender.userId === currentUserId && event.event.type === 'm.room.message') {
-                draft = new MatrixEvent(event);
+                draft = new MatrixEvent(event.event);
                 break;
             }
         }
@@ -61,26 +60,34 @@ export default class SedReplaceProvider extends AutocompleteProvider {
         const MessageEvent = sdk.getComponent('messages.MessageEvent');
         draft.event = Object.assign({}, draft.event);
         draft.event.content = Object.assign({}, draft.event.content);
-        if (typeof haystack === 'string') {
+        if (typeof replacement === 'string') {
+            // Modify the draft's ID to circumvent rendering optimizations and
+            // ensure the latest version of the body is always displayed.
+            draft.event.event_id += Math.random();
+            let pattern;
+            try {
+                pattern = new RegExp(patternStr);
+            } catch ({}) {
+                pattern = patternStr;
+            }
             draft.event.content.body = draft.event.content.body
-                .replace(needle, haystack);
+                .replace(pattern, replacement);
         }
-
-        const component = (
-              <MessageEvent mxEvent={draft} />
-        );
 
         return [
             {
-                completion: 'Foobar',
-                component,
+                completion: draft.event.content.body,
+                component: (
+                    <PillCompletion><MessageEvent mxEvent={draft} />
+                    </PillCompletion>
+                ),
                 range,
             }
         ];
     }
 
     getName() {
-        return _t('Edit your most recent message with a regular expression');
+        return '✏️ ' + _t('Edit your most recent message with a regular expression');
     }
 
     renderCompletions(completions: React.ReactNode[]): React.ReactNode {
