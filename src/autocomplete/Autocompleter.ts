@@ -24,6 +24,7 @@ import RoomProvider from './RoomProvider';
 import UserProvider from './UserProvider';
 import EmojiProvider from './EmojiProvider';
 import NotifProvider from './NotifProvider';
+import SedReplaceProvider from './SedReplaceProvider';
 import {timeout} from "../utils/promise";
 import AutocompleteProvider, {ICommand} from "./AutocompleteProvider";
 
@@ -54,6 +55,7 @@ const PROVIDERS = [
     CommandProvider,
     CommunityProvider,
     DuckDuckGoProvider,
+    SedReplaceProvider,
 ];
 
 // Providers will get rejected if they take longer than this.

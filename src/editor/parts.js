@@ -459,6 +459,8 @@ export class CommandPartCreator extends PartCreator {
         if (partIndex === 0 && text[0] === "/") {
             // text will be inserted by model, so pass empty string
             return this.command("");
+        } else if (partIndex === 0 && text[0] === "s") {
+            return new SedCommandCandidatePart("", this._autoCompleteCreator);
         } else {
             return super.createPartForInput(text, partIndex);
         }
@@ -471,6 +473,8 @@ export class CommandPartCreator extends PartCreator {
     deserializePart(part) {
         if (part.type === "command") {
             return this.command(part.text);
+        } else if (part.type === "sed-command") {
+            return new SedCommandCandidatePart("", this._autoCompleteCreator);
         } else {
             return super.deserializePart(part);
         }
@@ -480,5 +484,11 @@ export class CommandPartCreator extends PartCreator {
 class CommandPart extends PillCandidatePart {
     get type() {
         return "command";
+    }
+}
+
+class SedCommandCandidatePart extends PillCandidatePart {
+    get type() {
+        return "sed-command";
     }
 }
