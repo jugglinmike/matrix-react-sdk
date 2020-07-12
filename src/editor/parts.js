@@ -407,6 +407,8 @@ export class PartCreator {
                 return this.roomPill(part.text);
             case "user-pill":
                 return this.userPill(part.text, part.resourceId);
+            case "sed-command":
+                return this.sedCommandCandidate(part.text);
         }
     }
 
@@ -444,6 +446,10 @@ export class PartCreator {
         return new UserPillPart(userId, displayName, member);
     }
 
+    sedCommandCandidate(text) {
+        return new SedCommandCandidatePart(test, this._autoCompleteCreator);
+    }
+
     createMentionParts(partIndex, displayName, userId) {
         const pill = this.userPill(displayName, userId);
         const postfix = this.plain(partIndex === 0 ? ": " : " ");
@@ -460,7 +466,7 @@ export class CommandPartCreator extends PartCreator {
             // text will be inserted by model, so pass empty string
             return this.command("");
         } else if (partIndex === 0 && text[0] === "s") {
-            return new SedCommandCandidatePart("", this._autoCompleteCreator);
+            return this.sedCommand("");
         } else {
             return super.createPartForInput(text, partIndex);
         }
@@ -470,11 +476,15 @@ export class CommandPartCreator extends PartCreator {
         return new CommandPart(text, this._autoCompleteCreator);
     }
 
+    sedCommand(text) {
+        return new SedCommandCandidatePart(text, this._autoCompleteCreator);
+    }
+
     deserializePart(part) {
         if (part.type === "command") {
             return this.command(part.text);
         } else if (part.type === "sed-command") {
-            return new SedCommandCandidatePart("", this._autoCompleteCreator);
+            return this.sedCommand(part.text);
         } else {
             return super.deserializePart(part);
         }
@@ -490,5 +500,21 @@ class CommandPart extends PillCandidatePart {
 class SedCommandCandidatePart extends PillCandidatePart {
     get type() {
         return "sed-command";
+    }
+
+    acceptsInsertion(chr, offset, inputType) {
+        if (offset === 0) {
+            return chr === "s";
+        } else if (offset === 1) {
+            return chr === "/";
+        } else if (this.text[1] !== "/") {
+            return false;
+        }
+
+        return PlainPart.prototype.acceptsInsertion.call(this, chr, offset, inputType);
+    }
+
+    acceptsRemoval(position, chr) {
+        return position > 1;
     }
 }
